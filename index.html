@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="makita在庫">
+<title>makita 在庫管理</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;background:#f2f2f7;color:#1c1c1e;font-size:16px}
+#app{max-width:480px;margin:0 auto;padding-bottom:100px}
+
+/* Header */
+.header{background:#008DD5;color:#fff;padding:env(safe-area-inset-top,0) 0 0;position:sticky;top:0;z-index:50}
+.header-inner{padding:14px 16px;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:17px;font-weight:600;letter-spacing:.3px}
+.header-sub{font-size:11px;opacity:.85;margin-top:2px}
+
+/* Search */
+.search-bar{padding:10px 12px;background:#fff;border-bottom:0.5px solid rgba(0,0,0,.12);display:flex;gap:8px;align-items:center}
+.search-icon{font-size:16px;color:#8e8e93}
+.search-bar input{flex:1;font-size:15px;border:none;outline:none;background:transparent;color:#1c1c1e}
+.search-bar input::placeholder{color:#8e8e93}
+
+/* Filter */
+.filter-row{padding:8px 12px;display:flex;gap:6px;overflow-x:auto;background:#fff;border-bottom:0.5px solid rgba(0,0,0,.12)}
+.filter-row::-webkit-scrollbar{display:none}
+.filter-btn{flex-shrink:0;font-size:12px;padding:5px 12px;border-radius:20px;border:1px solid #c7c7cc;background:#fff;color:#3a3a3c;cursor:pointer;white-space:nowrap;-webkit-appearance:none}
+.filter-btn.active{background:#008DD5;color:#fff;border-color:#008DD5}
+
+/* Summary */
+.summary-bar{padding:10px 12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f2f2f7}
+.stat{background:#fff;border-radius:10px;padding:10px;text-align:center}
+.stat-num{font-size:22px;font-weight:600;color:#1c1c1e}
+.stat-lbl{font-size:11px;color:#8e8e93;margin-top:2px}
+
+/* Item list */
+.item-list{padding:8px 12px;display:flex;flex-direction:column;gap:8px}
+.item-card{background:#fff;border-radius:12px;padding:13px 14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.item-code{font-size:11px;color:#008DD5;font-weight:600;letter-spacing:.4px}
+.item-name{font-size:14px;font-weight:600;color:#1c1c1e;margin-top:3px;line-height:1.4}
+.item-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.item-price{font-size:13px;color:#636366;white-space:nowrap;flex-shrink:0}
+.item-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;align-items:center}
+.badge-qty{font-size:12px;padding:3px 10px;border-radius:20px;font-weight:600}
+.badge-qty.ok{background:#d1f0e0;color:#1a6b3c}
+.badge-qty.low{background:#fff3cd;color:#856404}
+.badge-qty.zero{background:#fde8e8;color:#9b1c1c}
+.badge-info{font-size:11px;padding:3px 9px;border-radius:20px;background:#f2f2f7;color:#636366}
+.item-actions{display:flex;gap:6px;margin-top:10px;border-top:0.5px solid rgba(0,0,0,.08);padding-top:10px}
+.btn-sm{flex:1;font-size:12px;padding:7px 0;border-radius:8px;border:1px solid #c7c7cc;background:#fff;color:#3a3a3c;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;-webkit-appearance:none}
+.btn-sm:active{background:#f2f2f7}
+.btn-sm.danger{color:#c0392b;border-color:#f5c6c6}
+.btn-sm.primary{color:#008DD5;border-color:#aad4ef}
+
+/* FAB */
+.fab{position:fixed;bottom:calc(28px + env(safe-area-inset-bottom,0px));right:20px;width:58px;height:58px;border-radius:50%;background:#008DD5;color:#fff;border:none;font-size:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,141,213,.4);z-index:40}
+.fab:active{transform:scale(.95)}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:flex-end;justify-content:center}
+.modal{background:#f2f2f7;border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;padding:20px 16px calc(28px + env(safe-area-inset-bottom,0px))}
+.modal-handle{width:36px;height:4px;background:#c7c7cc;border-radius:2px;margin:0 auto 16px}
+.modal-title{font-size:17px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.modal-close{background:none;border:none;cursor:pointer;font-size:24px;color:#8e8e93;line-height:1;padding:0}
+
+/* Form */
+.form-section{background:#fff;border-radius:12px;padding:0;margin-bottom:12px;overflow:hidden}
+.form-row-item{padding:12px 14px;border-bottom:0.5px solid rgba(0,0,0,.08);display:flex;align-items:center;gap:10px}
+.form-row-item:last-child{border-bottom:none}
+.form-label{font-size:13px;color:#636366;width:100px;flex-shrink:0}
+.form-input{flex:1;font-size:15px;border:none;outline:none;background:transparent;color:#1c1c1e;text-align:right;-webkit-appearance:none}
+.form-input::placeholder{color:#c7c7cc}
+select.form-input{color:#1c1c1e;font-size:14px}
+.required-dot{color:#c0392b;margin-left:2px}
+.price-note{font-size:10px;color:#aeaeb2;text-align:right;flex:1}
+
+/* Buttons */
+.btn-full{width:100%;padding:14px;font-size:16px;border-radius:12px;cursor:pointer;font-weight:600;-webkit-appearance:none;margin-bottom:8px}
+.btn-blue{background:#008DD5;color:#fff;border:none}
+.btn-blue:active{background:#0079b8}
+.btn-cancel{background:#fff;color:#636366;border:1px solid #c7c7cc}
+.btn-cancel:active{background:#f2f2f7}
+
+/* Empty */
+.empty{text-align:center;padding:48px 20px;color:#8e8e93;font-size:14px}
+.empty-icon{font-size:40px;margin-bottom:10px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="header-inner">
+      <div>
+        <h1>makita 在庫管理</h1>
+        <div class="header-sub" id="store-label">管材屋A — 福岡営業所</div>
+      </div>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+    </div>
+  </div>
+  <div class="search-bar">
+    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="search" id="search-input" placeholder="品番・品名・棚番で検索..." oninput="renderList()" autocorrect="off" autocapitalize="none">
+  </div>
+  <div class="filter-row" id="filter-row"></div>
+  <div class="summary-bar" id="summary-bar"></div>
+  <div class="item-list" id="item-list"></div>
+</div>
+
+<button class="fab" onclick="openModal(null)" aria-label="新規品目追加">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>
+
+<div id="modal-bg" class="modal-bg" style="display:none" onclick="handleBgClick(event)">
+  <div class="modal" id="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">
+      <span id="modal-title-text">品目を追加</span>
+      <button class="modal-close" onclick="closeModal()" aria-label="閉じる">&#x2715;</button>
+    </div>
+
+    <div class="form-section">
+      <div class="form-row-item">
+        <label class="form-label">品番<span class="required-dot">*</span></label>
+        <input class="form-input" id="f-code" placeholder="例: MUG001GZ" autocorrect="off" autocapitalize="characters" spellcheck="false" autocomplete="off">
+      </div>
+      <div class="form-row-item">
+        <label class="form-label">品名<span class="required-dot">*</span></label>
+        <input class="form-input" id="f-name" placeholder="例: 40V草刈機（本体）" autocorrect="off">
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-row-item">
+        <label class="form-label">標準小売価格</label>
+        <input class="form-input" id="f-price" type="number" placeholder="0" min="0" inputmode="numeric">
+        <span class="price-note">円（税別）</span>
+      </div>
+      <div class="form-row-item">
+        <label class="form-label">個数</label>
+        <input class="form-input" id="f-qty" type="number" placeholder="0" min="0" value="0" inputmode="numeric">
+        <span class="price-note">個</span>
+      </div>
+      <div class="form-row-item">
+        <label class="form-label">基準在庫数</label>
+        <input class="form-input" id="f-min" type="number" placeholder="0" min="0" value="0" inputmode="numeric">
+        <span class="price-note">個（補充目安）</span>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-row-item">
+        <label class="form-label">在庫場所</label>
+        <input class="form-input" id="f-loc" placeholder="例: A棚-3段目" list="loc-suggestions" autocorrect="off">
+        <datalist id="loc-suggestions"></datalist>
+      </div>
+      <div class="form-row-item">
+        <label class="form-label">カテゴリ</label>
+        <select class="form-input" id="f-cat">
+          <option value="①バッテリー">①バッテリー</option>
+          <option value="②穴あけ・締付け">②穴あけ・締付け</option>
+          <option value="③石工穴あけ・ハツリ">③石工穴あけ・ハツリ</option>
+          <option value="④切断・曲げ">④切断・曲げ</option>
+          <option value="⑤研削・研磨">⑤研削・研磨</option>
+          <option value="⑥集じん">⑥集じん</option>
+          <option value="⑦充電式クリーナー">⑦充電式クリーナー</option>
+          <option value="⑧レーザー">⑧レーザー</option>
+          <option value="⑨バイブレータ・カクハン">⑨バイブレータ・カクハン</option>
+          <option value="⑩エア・カンナ木工">⑩エア・カンナ木工</option>
+          <option value="⑪溝切・ホゾ穴">⑪溝切・ホゾ穴</option>
+          <option value="⑫発電・プラズマー">⑫発電・プラズマー</option>
+          <option value="⑬チェーンソー・園芸">⑬チェーンソー・園芸</option>
+          <option value="⑭高圧洗浄・ポンプ">⑭高圧洗浄・ポンプ</option>
+          <option value="⑮他充電製品">⑮他充電製品</option>
+          <option value="⑯アクセサリ">⑯アクセサリ</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn-full btn-blue" onclick="saveItem()" id="save-btn">追加する</button>
+    <button class="btn-full btn-cancel" onclick="closeModal()">キャンセル</button>
+  </div>
+</div>
+
+<script>
+const CATS = ['①バッテリー','②穴あけ・締付け','③石工穴あけ・ハツリ','④切断・曲げ','⑤研削・研磨','⑥集じん','⑦充電式クリーナー','⑧レーザー','⑨バイブレータ・カクハン','⑩エア・カンナ木工','⑪溝切・ホゾ穴','⑫発電・プラズマー','⑬チェーンソー・園芸','⑭高圧洗浄・ポンプ','⑮他充電製品','⑯アクセサリ'];
+
+const STORAGE_KEY = 'makita_inv_v2';
+
+let items = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || [
+  {id:1,code:'MUG001GZ',name:'40V草刈機（本体のみ）',price:42000,qty:3,min:2,loc:'A棚-1段目',cat:'⑬チェーンソー・園芸'},
+  {id:2,code:'TW090GZ',name:'40V締付トルク90N·mインパクトレンチ（本体）',price:31000,qty:5,min:3,loc:'A棚-2段目',cat:'②穴あけ・締付け'},
+  {id:3,code:'VS001GZ',name:'40V集じん機（本体のみ）',price:68000,qty:2,min:2,loc:'B棚-1段目',cat:'⑥集じん'},
+  {id:4,code:'CW006GZ',name:'18V高圧洗浄機（本体のみ）',price:28000,qty:0,min:1,loc:'B棚-2段目',cat:'⑭高圧洗浄・ポンプ'},
+  {id:5,code:'CU602',name:'コードレス掃除機 充電式クリーナー',price:18000,qty:8,min:3,loc:'C棚-1段目',cat:'⑦充電式クリーナー'},
+];
+let nextId = Math.max(0, ...items.map(i => i.id)) + 1;
+let editId = null;
+let activeFilter = 'all';
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+}
+
+function getLocSuggestions() {
+  return [...new Set(items.map(i => i.loc).filter(Boolean))];
+}
+
+function renderFilter() {
+  const usedCats = new Set(items.map(i => i.cat));
+  const row = document.getElementById('filter-row');
+  const allBtn = `<button class="filter-btn${activeFilter === 'all' ? ' active' : ''}" onclick="setFilter('all')">すべて</button>`;
+  const catBtns = CATS
+    .filter(c => usedCats.has(c))
+    .map(c => `<button class="filter-btn${activeFilter === c ? ' active' : ''}" onclick="setFilter(${JSON.stringify(c)})">${c}</button>`)
+    .join('');
+  row.innerHTML = allBtn + catBtns;
+}
+
+function setFilter(f) { activeFilter = f; renderFilter(); renderList(); }
+
+function getFiltered() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  return items.filter(i => {
+    const matchCat = activeFilter === 'all' || i.cat === activeFilter;
+    const matchQ = !q || i.code.toLowerCase().includes(q) || i.name.toLowerCase().includes(q) || (i.loc||'').toLowerCase().includes(q);
+    return matchCat && matchQ;
+  });
+}
+
+function renderSummary() {
+  const visible = getFiltered();
+  const zero = visible.filter(i => i.qty === 0).length;
+  const low = visible.filter(i => i.qty > 0 && i.min > 0 && i.qty < i.min).length;
+  document.getElementById('summary-bar').innerHTML = `
+    <div class="stat"><div class="stat-num">${visible.length}</div><div class="stat-lbl">品目数</div></div>
+    <div class="stat"><div class="stat-num" style="color:${zero > 0 ? '#c0392b' : '#1a6b3c'}">${zero}</div><div class="stat-lbl">在庫切れ</div></div>
+    <div class="stat" style="grid-column:1/-1"><div class="stat-num" style="color:${low > 0 ? '#856404' : '#1a6b3c'}">${low}</div><div class="stat-lbl">要補充（基準以下）</div></div>
+  `;
+}
+
+function renderList() {
+  renderSummary();
+  const list = document.getElementById('item-list');
+  const filtered = getFiltered();
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div>該当する品目がありません</div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(item => {
+    const minQty = item.min || 0;
+    const qClass = item.qty === 0 ? 'zero' : (minQty > 0 && item.qty < minQty) ? 'low' : 'ok';
+    const qLabel = item.qty === 0 ? '在庫切れ' : item.qty + '個';
+    const needReplenish = minQty > 0 && item.qty > 0 && item.qty < minQty;
+    const priceStr = item.price ? `¥${Number(item.price).toLocaleString()}` : '価格未設定';
+    return `<div class="item-card">
+      <div class="item-top">
+        <div style="flex:1;min-width:0">
+          <div class="item-code">${escHtml(item.code)}</div>
+          <div class="item-name">${escHtml(item.name)}</div>
+        </div>
+        <div class="item-price">${priceStr}</div>
+      </div>
+      <div class="item-badges">
+        <span class="badge-qty ${qClass}">${qLabel}</span>
+        ${needReplenish ? '<span class="badge-qty low">要補充</span>' : ''}
+        <span class="badge-info">📍 ${escHtml(item.loc || '場所未設定')}</span>
+        <span class="badge-info">${escHtml(item.cat || '')}</span>
+      </div>
+      <div class="item-actions">
+        <button class="btn-sm primary" onclick="quickQty(${item.id},-1)">− 出庫</button>
+        <button class="btn-sm primary" onclick="quickQty(${item.id},1)">＋ 入庫</button>
+        <button class="btn-sm" onclick="openModal(${item.id})">編集</button>
+        <button class="btn-sm danger" onclick="deleteItem(${item.id})">削除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function quickQty(id, delta) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  item.qty = Math.max(0, (item.qty || 0) + delta);
+  save(); renderList(); renderFilter();
+}
+
+function deleteItem(id) {
+  if (!confirm('この品目を削除しますか？')) return;
+  items = items.filter(i => i.id !== id);
+  save(); renderFilter(); renderList();
+}
+
+function openModal(id) {
+  if (id) {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    editId = id;
+    document.getElementById('modal-title-text').textContent = '品目を編集';
+    document.getElementById('save-btn').textContent = '保存する';
+    document.getElementById('f-code').value = item.code;
+    document.getElementById('f-name').value = item.name;
+    document.getElementById('f-price').value = item.price || '';
+    document.getElementById('f-qty').value = item.qty || 0;
+    document.getElementById('f-min').value = item.min || 0;
+    document.getElementById('f-loc').value = item.loc || '';
+    document.getElementById('f-cat').value = item.cat || CATS[0];
+  } else {
+    editId = null;
+    document.getElementById('modal-title-text').textContent = '品目を追加';
+    document.getElementById('save-btn').textContent = '追加する';
+    ['f-code','f-name','f-price','f-loc'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('f-qty').value = '0';
+    document.getElementById('f-min').value = '0';
+    document.getElementById('f-cat').value = CATS[0];
+  }
+  const dl = document.getElementById('loc-suggestions');
+  dl.innerHTML = getLocSuggestions().map(l => `<option value="${escHtml(l)}">`).join('');
+  document.getElementById('modal-bg').style.display = 'flex';
+}
+
+function closeModal() { document.getElementById('modal-bg').style.display = 'none'; }
+function handleBgClick(e) { if (e.target.id === 'modal-bg') closeModal(); }
+
+function saveItem() {
+  const code = document.getElementById('f-code').value.trim().toUpperCase();
+  const name = document.getElementById('f-name').value.trim();
+  if (!code || !name) { alert('品番と品名は必須です'); return; }
+  const price = parseInt(document.getElementById('f-price').value) || 0;
+  const qty = parseInt(document.getElementById('f-qty').value) || 0;
+  const min = parseInt(document.getElementById('f-min').value) || 0;
+  const loc = document.getElementById('f-loc').value.trim();
+  const cat = document.getElementById('f-cat').value;
+  if (editId) {
+    const item = items.find(i => i.id === editId);
+    Object.assign(item, {code, name, price, qty, min, loc, cat});
+  } else {
+    if (items.find(i => i.code === code)) { alert('この品番はすでに登録されています'); return; }
+    items.push({id: nextId++, code, name, price, qty, min, loc, cat});
+  }
+  save(); closeModal(); renderFilter(); renderList();
+}
+
+renderFilter();
+renderList();
+</script>
+</body>
+</html>
